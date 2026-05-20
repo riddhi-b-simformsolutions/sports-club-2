@@ -1,50 +1,141 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT
+==================
+Version change: (none) → 1.0.0
+Added sections: Core Principles (I–IV), Technology Stack, Development Workflow, Governance
+Removed sections: N/A (initial fill)
+Templates checked:
+  ✅ .specify/templates/plan-template.md — Constitution Check gates align with principles below
+  ✅ .specify/templates/spec-template.md — no mandatory section conflicts
+  ✅ .specify/templates/tasks-template.md — task categories (Setup, Foundation, US phases) align
+Deferred TODOs: none
+-->
+
+# Sports Club Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Angular Modern-First (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+All Angular code MUST use the latest stable Angular APIs and patterns:
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- Standalone components, directives, and pipes are the default unit of composition;
+  NgModules MUST NOT be introduced for new code.
+- Reactive state MUST use Angular Signals (`signal`, `computed`, `effect`).
+  RxJS is permitted only for async I/O (HTTP, WebSockets) and MUST be bridged with
+  `toSignal` / `toObservable` at the boundary.
+- Dependency injection MUST use the `inject()` function; constructor injection is forbidden
+  in new code.
+- Routing MUST use the standalone router with lazy-loaded routes defined as
+  `loadComponent` or `loadChildren` arrow functions.
+- Change detection strategy MUST be `OnPush` for every component.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: Keeps the bundle lean, aligns with Angular's official guidance for v17+,
+and avoids technical debt from deprecated patterns.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Ant Design UI Library (NON-NEGOTIABLE)
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+The only permitted UI component library is **ng-zorro-antd** (Angular port of Ant Design):
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Every UI element that exists in ng-zorro-antd MUST be sourced from that library.
+  Custom-built replacements for existing components are forbidden.
+- Theming MUST be done through the ng-zorro-antd CSS variable / less-variable system.
+  Direct overrides of internal Ant Design class names are forbidden.
+- Icons MUST use `NzIconModule` with explicit icon registration; wildcard icon imports
+  are forbidden (bundle-size concern).
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: Provides a consistent, accessible, well-documented design system without
+maintaining custom UI primitives.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### III. Feature-Based Modular Structure
+
+The source tree MUST follow a feature-folder layout:
+
+```
+src/
+  app/
+    core/          # singleton services, interceptors, guards (no UI)
+    shared/        # reusable standalone components/pipes/directives
+    features/
+      <feature>/   # one folder per product feature
+        components/
+        services/
+        models/
+        routes.ts  # standalone lazy route definition
+  assets/
+  environments/
+```
+
+Rules:
+- Each feature folder is self-contained; cross-feature imports are forbidden except
+  through `shared/` or `core/`.
+- Route files (`routes.ts`) MUST be the sole entry point for lazy loading a feature.
+- Barrel files (`index.ts`) MUST be used at the `shared/` and `core/` boundaries only.
+
+**Rationale**: Enables independent development, clear ownership boundaries, and fast
+incremental builds.
+
+### IV. Static Deployment Constraint
+
+This is a **static web application** (no server runtime):
+
+- The build output (`ng build --configuration production`) MUST consist solely of
+  static assets (HTML, JS, CSS, images) deployable to any static host (e.g., Azure
+  Static Web Apps, GitHub Pages, S3).
+- All API calls MUST target external service URLs configured via `environment.ts`
+  files; no server-side proxy or SSR is permitted.
+- `angular.json` MUST use `outputHashing: "all"` for production to enable long-term
+  cache headers.
+
+**Rationale**: Minimises infrastructure complexity and hosting cost while maximising
+CDN cacheability.
+
+## Technology Stack
+
+| Concern | Chosen Technology |
+|---|---|
+| Framework | Angular (latest stable, currently v19+) |
+| Language | TypeScript (strict mode ON) |
+| UI Library | ng-zorro-antd (latest stable) |
+| State | Angular Signals; RxJS for async I/O only |
+| Styling | Less (ng-zorro-antd default) + component-scoped CSS |
+| Build | Angular CLI (`@angular/cli`) |
+| Testing (unit) | Jest via `jest-preset-angular` |
+| Linting | ESLint with `@angular-eslint` ruleset |
+| Formatting | Prettier (single config at repo root) |
+| Node version | ≥ 20 LTS |
+
+TypeScript `strict: true` (plus `strictTemplates: true` in `tsconfig.app.json`) MUST
+remain enabled at all times.
+
+## Development Workflow
+
+1. **Feature branch** — every feature starts from a branch named `###-feature-name`.
+2. **Spec first** — a `spec.md` MUST exist and be approved before implementation begins.
+3. **Plan second** — a `plan.md` with a Constitution Check section MUST pass gates
+   before coding starts.
+4. **Tests alongside code** — unit tests for services and complex components MUST be
+   written in the same PR as the implementation. Test files live beside source files
+   (`*.spec.ts`).
+5. **Build gate** — `ng build --configuration production` MUST succeed with zero errors
+   and zero TypeScript errors before a PR can be merged.
+6. **Lint gate** — `ng lint` MUST report zero errors. Warnings are allowed temporarily
+   but MUST be resolved within the same sprint.
+7. **No dead code** — unused imports, components, and services MUST be removed before
+   merge; tree-shaking is relied upon for production bundles.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution supersedes all other coding guidelines and prior conventions.
+- Amendments are documented via a PR that updates this file, increments the version,
+  and updates the Sync Impact Report comment above.
+- Version bumps follow semantic versioning:
+  - **MAJOR** — principle removed or redefined in a backward-incompatible way.
+  - **MINOR** — new principle or section added.
+  - **PATCH** — clarification, wording fix, or non-semantic refinement.
+- All pull requests MUST include a "Constitution Check" section in the plan or PR
+  description confirming compliance with Principles I–IV.
+- Complexity beyond what the current constitution allows MUST be justified in writing
+  and approved before implementation.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-05-20 | **Last Amended**: 2026-05-20
